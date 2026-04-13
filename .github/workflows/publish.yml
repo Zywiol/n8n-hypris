@@ -25,7 +25,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Fix git safe directory
-        run: git config --global --add safe.directory '*'
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          rm -rf n8n-official
+
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: npm install --include=dev
