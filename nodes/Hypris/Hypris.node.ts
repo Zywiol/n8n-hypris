@@ -105,19 +105,18 @@ export class Hypris implements INodeType {
 				try {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
-						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-space`,
+						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-spaces`,
 						json: true,
 					});
 					let spaces = [];
 					if (Array.isArray(response)) spaces = response;
+					else if (response && response.data && Array.isArray(response.data.resourceSpaces))
+						spaces = response.data.resourceSpaces;
+					else if (response && Array.isArray(response.resourceSpaces)) spaces = response.resourceSpaces;
 					else if (response && response.data) spaces = response.data;
-					else if (response && response.data && Array.isArray(response.data.spaces))
-						spaces = response.data.spaces;
-					else if (response && Array.isArray(response.spaces)) spaces = response.spaces;
 
 					for (const space of spaces) {
 						let name = space.name || space.title || space.id;
-						if (space.isDefault) name = `${name} (Default)`;
 						returnData.push({
 							name: name,
 							value: space.id,
@@ -160,16 +159,30 @@ export class Hypris implements INodeType {
 
 					for (const prop of properties) {
 						let type = String(prop.type || '').toLowerCase();
-						if (resource === 'property' && operation === 'delete' && type === 'name') {
+						if (resource === 'property' && operation === 'delete' && (type === 'name' || prop.title === 'Name')) {
 							continue; // Wyklucz name z opcji usuwania
 						}
 						if (resource === 'item') {
 							if (operation === 'create' || operation === 'update') {
-								if (type === 'auto-id' || type === 'files' || type === 'conversation') continue;
+								if ([
+									'auto-id',
+									'files',
+									'conversation',
+									'comments',
+									'time-tracker',
+									'formula',
+									'created-at',
+									'updated-at',
+									'teleport',
+									'reverse-relation',
+									'location',
+								].includes(type)) continue;
 							} else if (operation === 'uploadFile' || operation === 'deleteFile') {
 								if (type !== 'files') continue;
 							} else if (operation === 'addMessage') {
 								if (type !== 'conversation') continue;
+							} else if (operation === 'updateLocation') {
+								if (type !== 'location') continue;
 							}
 						}
 
@@ -388,6 +401,12 @@ export class Hypris implements INodeType {
 						description: 'Edit an existing conversation message',
 						action: 'Edit conversation message',
 					},
+					{
+						name: 'Update Location',
+						value: 'updateLocation',
+						description: 'Update a location property with latitude, longitude and address details',
+						action: 'Update location of an item',
+					},
 				],
 				default: 'create',
 			},
@@ -594,6 +613,7 @@ export class Hypris implements INodeType {
 							'rename',
 							'getResources',
 							'getAll',
+							'updateLocation',
 						],
 					},
 				},
@@ -618,6 +638,7 @@ export class Hypris implements INodeType {
 							'createFilterGroup',
 							'uploadFile',
 							'addMessage',
+							'updateLocation',
 						],
 					},
 				},
@@ -656,11 +677,29 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['database'],
-						operation: ['getMany', 'delete', 'update', 'getFullDataOptions'],
+						operation: ['getMany', 'update', 'getFullDataOptions'],
 					},
 				},
 				placeholder: '69b7dc893bdd1bad9241263f',
 				description: 'The ID of the database or select one from the list',
+			},
+			{
+				displayName: 'Databases to Delete',
+				name: 'databaseIdsToDelete',
+				type: 'multiOptions',
+				typeOptions: {
+					loadOptionsMethod: 'getDatabases',
+					loadOptionsDependsOn: ['workspaceIdLoader'],
+				},
+				default: [],
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['database'],
+						operation: ['delete'],
+					},
+				},
+				description: 'Select the databases to delete',
 			},
 			{
 				displayName: 'Item ID',
@@ -671,11 +710,142 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['item'],
-						operation: ['update', 'uploadFile', 'addMessage'],
+						operation: ['update', 'uploadFile', 'addMessage', 'updateLocation'],
 					},
 				},
 				placeholder: '69c123...abc',
 				description: 'The unique ID of the item to interact with',
+			},
+			{
+				displayName: 'Location Property Name or ID',
+				name: 'locationPropertyId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getProperties',
+					loadOptionsDependsOn: ['databaseId'],
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'The location property to update. Only location properties are shown here.',
+			},
+			{
+				displayName: 'Latitude',
+				name: 'latitude',
+				type: 'number',
+				default: 0,
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'The latitude coordinate (e.g. 53.00969)',
+			},
+			{
+				displayName: 'Longitude',
+				name: 'longitude',
+				type: 'number',
+				default: 0,
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'The longitude coordinate (e.g. 18.61589)',
+			},
+			{
+				displayName: 'Address',
+				name: 'address',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'The formatted address string (e.g. "Krakowskie Przedmieście 1, Warszawa")',
+			},
+			{
+				displayName: 'Country',
+				name: 'country',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'Optional address component: Country',
+			},
+			{
+				displayName: 'City',
+				name: 'city',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'Optional address component: City',
+			},
+			{
+				displayName: 'Street',
+				name: 'street',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'Optional address component: Street',
+			},
+			{
+				displayName: 'Postal Code',
+				name: 'postalCode',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['updateLocation'],
+					},
+				},
+				description: 'Optional address component: Postal Code',
+			},
+			{
+				displayName: 'Item Name',
+				name: 'itemName',
+				type: 'string',
+				default: '',
+				required: false,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['create', 'update'],
+						jsonParameters: [false],
+					},
+				},
+				description: 'The explicit name of the item. Leave empty to use default or mapped properties.',
 			},
 			{
 				displayName: 'Item IDs to Delete',
@@ -1115,24 +1285,11 @@ export class Hypris implements INodeType {
 				description: 'New type for the view',
 			},
 			{
-				displayName: 'Workspace Name',
-				name: 'workspaceName',
-				type: 'string',
-				default: '',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['workspace'],
-						operation: ['createWorkspace'],
-					},
-				},
-				description: 'The unique name identifier for the workspace (e.g. nowy-workspace)',
-			},
-			{
 				displayName: 'Workspace Title',
 				name: 'workspaceTitle',
 				type: 'string',
 				default: '',
+				required: true,
 				displayOptions: {
 					show: {
 						resource: ['workspace'],
@@ -1146,11 +1303,10 @@ export class Hypris implements INodeType {
 				name: 'workspaceType',
 				type: 'options',
 				options: [
-					{ name: '- Leave Empty -', value: '' },
 					{ name: 'Team', value: 'team' },
-					{ name: 'Personal', value: 'personal' },
+					{ name: 'Private', value: 'private' },
 				],
-				default: '',
+				default: 'team',
 				displayOptions: {
 					show: {
 						resource: ['workspace'],
@@ -1314,9 +1470,13 @@ export class Hypris implements INodeType {
 				description: 'Name of the database',
 			},
 			{
-				displayName: 'Resource Space ID',
+				displayName: 'Resource Space',
 				name: 'resourceSpaceId',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getSpaces',
+					loadOptionsDependsOn: ['workspaceIdLoader'],
+				},
 				default: '',
 				displayOptions: {
 					show: {
@@ -1325,7 +1485,7 @@ export class Hypris implements INodeType {
 					},
 				},
 				description:
-					'Optional. Providing ID here assigns database to specific space. If empty, it will be auto-detected.',
+					'Select a Space where the database should be created. Requires selecting a Workspace above first.',
 			},
 		],
 	};
@@ -1337,6 +1497,7 @@ export class Hypris implements INodeType {
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
 		const dbPropertiesCache: { [key: string]: any[] } = {};
+		const dbInfoCache: { [key: string]: any } = {};
 
 		const processFixedCollectionProperties = async (
 			thisArg: IExecuteFunctions,
@@ -1447,6 +1608,40 @@ export class Hypris implements INodeType {
 							finalValue = [finalValue.trim()];
 						}
 					}
+				} else if (propMeta && propMeta.type === 'date') {
+					if (typeof finalValue === 'string') {
+						finalValue = finalValue.trim();
+						if (finalValue.startsWith('{')) {
+							try {
+								finalValue = JSON.parse(finalValue);
+							} catch (e) {}
+						} else if (finalValue) {
+							let dateStr = finalValue;
+							let timeStr = null;
+							
+							const dateMatch = finalValue.match(/^(\d{4}-\d{2}-\d{2})/);
+							if (dateMatch) {
+								dateStr = dateMatch[1];
+								const timeMatch = finalValue.match(/T(\d{2}:\d{2})| (\d{2}:\d{2})/);
+								if (timeMatch) {
+									timeStr = timeMatch[1] || timeMatch[2];
+								}
+							}
+							
+							finalValue = {
+								from: {
+									date: dateStr,
+									time: timeStr
+								},
+								to: {
+									date: null,
+									time: null
+								}
+							};
+						} else {
+							finalValue = null; // empty string -> clear date
+						}
+					}
 				}
 
 				// Safely parse JSON strings (handling accidental extra quotes)
@@ -1508,6 +1703,32 @@ export class Hypris implements INodeType {
 								autoCreateOptions,
 								body,
 							);
+							
+							const itemName = this.getNodeParameter('itemName', i, '') as string;
+							if (itemName) {
+								if (!dbInfoCache[databaseId]) {
+									try {
+										const dbInfoResp = await this.helpers.httpRequestWithAuthentication.call(
+											this,
+											'hyprisApi',
+											{
+												method: 'GET',
+												url: `https://api.hypris.com/v1/database/${databaseId}`,
+												json: true,
+											},
+										);
+										dbInfoCache[databaseId] = dbInfoResp?.data?.database || dbInfoResp?.database || {};
+									} catch (e) {
+										// Ignore db fetch error
+									}
+								}
+								const namePropertyId = dbInfoCache[databaseId]?.namePropertyId;
+								if (namePropertyId) {
+									body.cellValues = body.cellValues || {};
+									body.cellValues[namePropertyId] = itemName;
+								}
+							}
+							
 							body.state = 'published';
 						}
 
@@ -1563,7 +1784,75 @@ export class Hypris implements INodeType {
 								autoCreateOptions,
 								body,
 							);
+
+							const itemName = this.getNodeParameter('itemName', i, '') as string;
+							if (itemName) {
+								if (!dbInfoCache[databaseId]) {
+									try {
+										const dbInfoResp = await this.helpers.httpRequestWithAuthentication.call(
+											this,
+											'hyprisApi',
+											{
+												method: 'GET',
+												url: `https://api.hypris.com/v1/database/${databaseId}`,
+												json: true,
+											},
+										);
+										dbInfoCache[databaseId] = dbInfoResp?.data?.database || dbInfoResp?.database || {};
+									} catch (e) {
+										// Ignore db fetch error
+									}
+								}
+								const namePropertyId = dbInfoCache[databaseId]?.namePropertyId;
+								if (namePropertyId) {
+									body.cellValues = body.cellValues || {};
+									body.cellValues[namePropertyId] = itemName;
+								}
+							}
 						}
+
+						console.log(`[Hypris] Update Item ${itemId} payload:`, JSON.stringify(body, null, 2));
+
+						options = {
+							method: 'PATCH',
+							url: `https://api.hypris.com/v1/item/${itemId}/cell-values`,
+							headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+							body,
+							json: true,
+						};
+					} else if (operation === 'updateLocation') {
+						const itemId = this.getNodeParameter('itemId', i) as string;
+						const locationPropertyId = this.getNodeParameter('locationPropertyId', i) as string;
+						const latitude = this.getNodeParameter('latitude', i, 0) as number;
+						const longitude = this.getNodeParameter('longitude', i, 0) as number;
+						const address = this.getNodeParameter('address', i, '') as string;
+						const country = this.getNodeParameter('country', i, '') as string;
+						const city = this.getNodeParameter('city', i, '') as string;
+						const street = this.getNodeParameter('street', i, '') as string;
+						const postalCode = this.getNodeParameter('postalCode', i, '') as string;
+
+						const locationValue = {
+							address: address,
+							displayAddress: address,
+							coordinates: [longitude, latitude],
+							addressComponents: {
+								country: country,
+								state: null,
+								county: null,
+								commune: null,
+								city: city,
+								street: street,
+								postalCode: postalCode
+							}
+						};
+
+						const body = {
+							cellValues: {
+								[locationPropertyId]: locationValue
+							}
+						};
+
+						console.log(`[Hypris] Update Location Item ${itemId} payload:`, JSON.stringify(body, null, 2));
 
 						options = {
 							method: 'PATCH',
@@ -1691,7 +1980,6 @@ export class Hypris implements INodeType {
 						const createdProps = [];
 						for (const prop of propertiesList.propertyValues || []) {
 							const body = { title: prop.title, type: prop.type, state: 'published' };
-							// console removed
 
 							try {
 								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
@@ -1700,14 +1988,23 @@ export class Hypris implements INodeType {
 									body,
 									json: true,
 								});
-								createdProps.push(res);
+								if (res?.data?.property) {
+									createdProps.push({
+										propertyId: res.data.property.id,
+										title: res.data.property.title,
+										type: res.data.property.type,
+									});
+								}
 							} catch (e: any) {
-								// console removed
 								throw e;
 							}
 						}
 
-						returnData.push({ json: { createdProperties: createdProps } });
+						if (createdProps.length > 0) {
+							returnData.push({ json: { createdProperties: createdProps } });
+						} else {
+							returnData.push({ json: { success: true } });
+						}
 						continue;
 					} else if (operation === 'delete') {
 						const propertyIdsToDelete = this.getNodeParameter('propertyIdsToDelete', i) as any;
@@ -1715,23 +2012,19 @@ export class Hypris implements INodeType {
 							? propertyIdsToDelete
 							: [propertyIdsToDelete];
 
-						const deletedProps = [];
 						for (const propId of propertyIds) {
-
 							try {
-								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
+								await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'DELETE',
 									url: `https://api.hypris.com/v1/property/${propId}`,
 									json: true,
 								});
-								deletedProps.push({ propertyId: propId, status: res });
 							} catch (e: any) {
-								// console removed
 								throw e;
 							}
 						}
 
-						returnData.push({ json: { deletedProperties: deletedProps } });
+						returnData.push({ json: { success: true } });
 						continue;
 					} else if (operation === 'update') {
 						const propertyId = this.getNodeParameter('propertyId', i) as string;
@@ -1782,14 +2075,24 @@ export class Hypris implements INodeType {
 									body,
 									json: true,
 								});
-								createdViews.push(res);
+								if (res?.data?.databaseView) {
+									createdViews.push({
+										viewId: res.data.databaseView.id,
+										name: res.data.databaseView.name,
+										type: res.data.databaseView.type,
+										createdAt: res.data.databaseView.createdAt,
+									});
+								}
 							} catch (e: any) {
-								// console removed
 								throw e;
 							}
 						}
 
-						returnData.push({ json: { createdViews } });
+						if (createdViews.length > 0) {
+							returnData.push({ json: { createdViews: createdViews } });
+						} else {
+							returnData.push({ json: { success: true } });
+						}
 						continue;
 					} else if (operation === 'update') {
 						const viewId = this.getNodeParameter('viewId', i) as string;
@@ -1810,25 +2113,20 @@ export class Hypris implements INodeType {
 					} else if (operation === 'delete') {
 						const viewIdsToDelete = this.getNodeParameter('viewIdsToDelete', i) as any;
 						const viewIds = Array.isArray(viewIdsToDelete) ? viewIdsToDelete : [viewIdsToDelete];
-						const deletedViews = [];
-
 						for (const viewId of viewIds) {
-
 							try {
-								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
+								await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'DELETE',
 									url: `https://api.hypris.com/v1/view/${viewId}`,
 									headers: { Accept: 'application/json' },
 									json: true,
 								});
-								deletedViews.push({ viewId, status: res });
 							} catch (e: any) {
-								// console removed
 								throw e;
 							}
 						}
 
-						returnData.push({ json: { deletedViews } });
+						returnData.push({ json: { success: true } });
 						continue;
 					}
 				} else if (resource === 'workspace') {
@@ -1840,14 +2138,18 @@ export class Hypris implements INodeType {
 							json: true,
 						};
 					} else if (operation === 'createWorkspace') {
-						const workspaceName = this.getNodeParameter('workspaceName', i) as string;
-						const workspaceTitle = this.getNodeParameter('workspaceTitle', i, '') as string;
-						const workspaceType = this.getNodeParameter('workspaceType', i, '') as string;
+						const workspaceTitle = this.getNodeParameter('workspaceTitle', i) as string;
+						const workspaceType = this.getNodeParameter('workspaceType', i, 'team') as string;
+
+						// Auto-generowanie slug'a, ponieważ API zawsze go wymaga
+						let autoName = workspaceTitle.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+						if (autoName.length < 3) autoName = autoName + '-ws';
+
 						let body: any = {
-							name: workspaceName,
+							title: workspaceTitle,
+							name: autoName,
+							type: workspaceType,
 						};
-						if (workspaceTitle) body.title = workspaceTitle;
-						if (workspaceType) body.type = workspaceType;
 
 						options = {
 							method: 'POST',
@@ -1892,39 +2194,15 @@ export class Hypris implements INodeType {
 						let resourceSpaceId = this.getNodeParameter('resourceSpaceId', i, '') as string;
 
 						if (!resourceSpaceId) {
-							try {
-								const itemsResp = await this.helpers.httpRequestWithAuthentication.call(
-									this,
-									'hyprisApi',
-									{
-										method: 'GET',
-										url: `https://api.hypris.com/v1/workspace/${workspaceId}/resource-items`,
-										json: true,
-									},
-								);
-								let resources = [];
-								if (Array.isArray(itemsResp)) resources = itemsResp;
-								else if (itemsResp && itemsResp.data && Array.isArray(itemsResp.data.resourceItems))
-									resources = itemsResp.data.resourceItems;
-								else if (itemsResp && Array.isArray(itemsResp.resourceItems))
-									resources = itemsResp.resourceItems;
-
-								if (resources.length > 0) {
-									const itemWithSpace = resources.find((r: any) => r.resourceSpaceId);
-									if (itemWithSpace && itemWithSpace.resourceSpaceId) {
-										resourceSpaceId = itemWithSpace.resourceSpaceId;
-									}
-								}
-							} catch (e: any) {
-							}
+							throw new Error('You must explicitly select a Resource Space to create a database.');
 						}
 
 						const body: any = {
 							title: dbTitle,
-							resourceGroupId: null,
-							isPublic: false,
 						};
 						if (resourceSpaceId) body.resourceSpaceId = resourceSpaceId;
+
+						console.log(`[Hypris-Create-Database] Gotowy ostateczny payload na serwer: `, JSON.stringify(body, null, 2));
 
 						options = {
 							method: 'POST',
@@ -1934,13 +2212,22 @@ export class Hypris implements INodeType {
 							json: true,
 						};
 					} else if (operation === 'delete') {
-						const databaseId = this.getNodeParameter('databaseId', i) as string;
-						options = {
-							method: 'DELETE',
-							url: `https://api.hypris.com/v1/database/${databaseId}`,
-							headers: { Accept: 'application/json' },
-							json: true,
-						};
+						const databaseIdsToDelete = this.getNodeParameter('databaseIdsToDelete', i) as any;
+						const databaseIds = Array.isArray(databaseIdsToDelete) 
+							? databaseIdsToDelete 
+							: [databaseIdsToDelete];
+							
+						for (const dbId of databaseIds) {
+							await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
+								method: 'DELETE',
+								url: `https://api.hypris.com/v1/database/${dbId}`,
+								headers: { Accept: 'application/json' },
+								json: true,
+							});
+						}
+						
+						returnData.push({ json: { success: true } });
+						continue;
 					}
 				}
 
@@ -1978,12 +2265,24 @@ export class Hypris implements INodeType {
 						else if (responseData && Array.isArray(responseData.resourceItems))
 							resources = responseData.resourceItems;
 
-						const databases = resources.filter(
-							(item: any) =>
-								item.resourceType === 'database' ||
-								(item.resourceEntity && item.resourceEntity.resourceType === 'database'),
-						);
-						data = { databases };
+						const databases = resources
+							.filter(
+								(item: any) =>
+									item.resourceType === 'database' ||
+									(item.resourceEntity && item.resourceEntity.resourceType === 'database'),
+							)
+							.map((item: any) => {
+								const payload = item.resourceEntity?.payload || {};
+								return {
+									databaseId: item.resourceEntity?.resourceId || item.id,
+									title: payload.title || item.name,
+									workspaceId: item.workspaceId,
+									createdAt: payload.createdAt,
+								};
+							});
+						
+						returnData.push(...databases.map((db: any) => ({ json: db })));
+						continue;
 					} else if (resource === 'item' && (operation === 'create' || operation === 'update')) {
 						if (responseData && responseData.data && responseData.data.databaseItem) {
 							const itemRaw = responseData.data.databaseItem;
@@ -1992,6 +2291,105 @@ export class Hypris implements INodeType {
 								name: itemRaw.name,
 								createdAt: itemRaw.createdAt,
 								updatedAt: itemRaw.updatedAt,
+							};
+						}
+					} else if (resource === 'item' && operation === 'getMany') {
+						if (responseData && responseData.data && Array.isArray(responseData.data.databaseItemsGroups)) {
+							const items = responseData.data.databaseItemsGroups.flat();
+							returnData.push(...items.map((itemRaw: any) => ({
+								json: {
+									itemId: itemRaw.id,
+									name: itemRaw.name,
+									createdAt: itemRaw.createdAt,
+									updatedAt: itemRaw.updatedAt,
+									cellValues: itemRaw.cellValues,
+								}
+							})));
+							continue;
+						}
+					} else if (resource === 'item' && operation === 'delete') {
+						data = { success: true };
+					} else if (resource === 'property' && operation === 'getMany') {
+						if (responseData && responseData.data && Array.isArray(responseData.data.properties)) {
+							const properties = responseData.data.properties;
+							returnData.push(...properties.map((prop: any) => ({
+								json: {
+									id: prop.id,
+									title: prop.title,
+									type: prop.type,
+									databaseId: prop.databaseId,
+									valueType: prop.valueType,
+									options: prop.options,
+									position: prop.position,
+								}
+							})));
+							continue;
+						}
+					} else if (resource === 'workspace' && operation === 'getAllWorkspaces') {
+						if (responseData && responseData.data && Array.isArray(responseData.data.workspaces)) {
+							const workspaces = responseData.data.workspaces;
+							returnData.push(...workspaces.map((ws: any) => ({
+								json: {
+									id: ws.id,
+									title: ws.title,
+									name: ws.name,
+								}
+							})));
+							continue;
+						}
+					} else if (resource === 'workspace' && operation === 'getResources') {
+						if (responseData && responseData.data && Array.isArray(responseData.data.resourceItems)) {
+							const items = responseData.data.resourceItems;
+							returnData.push(...items.map((item: any) => ({
+								json: {
+									resourceId: item.resourceEntity?.resourceId || item.id,
+									name: item.name,
+									type: item.resourceEntity?.resourceType || item.iconNameType,
+									workspaceId: item.workspaceId,
+									createdAt: item.resourceEntity?.payload?.createdAt || null,
+								}
+							})));
+							continue;
+						}
+					} else if (resource === 'workspace' && operation === 'createWorkspace') {
+						if (responseData && responseData.data && responseData.data.workspace) {
+							const wsRaw = responseData.data.workspace;
+							data = {
+								id: wsRaw.id,
+								title: wsRaw.title,
+								name: wsRaw.name,
+							};
+						}
+					} else if (resource === 'database' && (operation === 'create' || operation === 'update')) {
+						if (responseData && responseData.data && responseData.data.database) {
+							const dbRaw = responseData.data.database;
+							data = {
+								databaseId: dbRaw.id,
+								title: dbRaw.title,
+								createdAt: dbRaw.createdAt,
+							};
+						}
+					} else if (resource === 'property' && operation === 'update') {
+						if (responseData && responseData.data && responseData.data.property) {
+							const prop = responseData.data.property;
+							data = {
+								id: prop.id,
+								title: prop.title,
+								type: prop.type,
+								databaseId: prop.databaseId,
+								valueType: prop.valueType,
+								options: prop.options,
+								position: prop.position,
+							};
+						}
+					} else if (resource === 'view' && operation === 'update') {
+						if (responseData && responseData.data && responseData.data.databaseView) {
+							const viewRaw = responseData.data.databaseView;
+							data = {
+								viewId: viewRaw.id,
+								name: viewRaw.name,
+								type: viewRaw.type,
+								createdAt: viewRaw.createdAt,
 							};
 						}
 					}
