@@ -24,10 +24,10 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Fix git safe directory
+      - name: Git clean and safety
         run: |
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          rm -rf n8n-official
+          git clean -fdx -e node_modules # Clean all untracked files except node_modules
 
       - name: Update npm
         run: npm install -g npm@latest
@@ -39,6 +39,6 @@ jobs:
         run: npm run build
 
       - name: Publish to NPM
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --loglevel verbose
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
