@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-hypris-api",
-	"version": "0.1.36",
+	"version": "0.1.37",
 	"description": "n8n node for Hypris - enterprise workflow and database management platform",
 	"license": "MIT",
 	"homepage": "https://github.com/Zywiol/n8n-hypris",
