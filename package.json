@@ -1,28 +1,25 @@
 {
-	"name": "n8n-nodes-<...>",
-	"version": "0.1.0",
-	"description": "",
+	"name": "n8n-nodes-hypris-api",
+	"version": "0.1.28",
+	"description": "n8n node for Hypris - enterprise workflow and database management platform",
 	"license": "MIT",
-	"homepage": "",
-	"keywords": [
-		"n8n-community-node-package"
-	],
-	"author": {
-		"name": "",
-		"email": ""
-	},
+	"homepage": "https://github.com/Zywiol/n8n-hypris",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/<...>/n8n-nodes-<...>.git"
+		"url": "https://github.com/Zywiol/n8n-hypris.git"
 	},
+	"keywords": [
+		"n8n-community-node-package",
+		"hypris"
+	],
+	"author": {
+		"name": "Dawid Zywica",
+		"email": "dawid.zywica@hypris.com"
+	},
+	"main": "index.js",
 	"scripts": {
-		"build": "n8n-node build",
-		"build:watch": "tsc --watch",
-		"dev": "n8n-node dev",
-		"lint": "n8n-node lint",
-		"lint:fix": "n8n-node lint --fix",
-		"release": "n8n-node release",
-		"prepublishOnly": "n8n-node prerelease"
+		"build": "tsc && cp nodes/Hypris/hypris.svg dist/nodes/Hypris/ && cp nodes/Hypris/hypris.svg dist/credentials/",
+		"build:watch": "tsc --watch"
 	},
 	"files": [
 		"dist"
@@ -31,19 +28,14 @@
 		"n8nNodesApiVersion": 1,
 		"strict": true,
 		"credentials": [
-			"dist/credentials/GithubIssuesApi.credentials.js",
-			"dist/credentials/GithubIssuesOAuth2Api.credentials.js"
+			"dist/credentials/HyprisApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/GithubIssues/GithubIssues.node.js",
-			"dist/nodes/Example/Example.node.js"
+			"dist/nodes/Hypris/Hypris.node.js"
 		]
 	},
 	"devDependencies": {
-		"@n8n/node-cli": "*",
-		"eslint": "9.39.4",
-		"prettier": "3.8.1",
-		"release-it": "19.2.4",
+		"@types/node": "^25.5.2",
 		"typescript": "5.9.3"
 	},
 	"peerDependencies": {
