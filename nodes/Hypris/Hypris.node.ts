@@ -621,7 +621,8 @@ export class Hypris implements INodeType {
 						],
 					},
 				},
-				description: 'The ID of the database, e.g., 69b7dc893bdd1bad9241263f',
+				placeholder: '69b7dc893bdd1bad9241263f',
+				description: 'The ID of the database or select one from the list',
 			},
 			{
 				displayName: 'Database Name or ID',
@@ -639,7 +640,8 @@ export class Hypris implements INodeType {
 						operation: ['create', 'getMany', 'delete', 'update', 'getFullDataOptions'],
 					},
 				},
-				description: 'The ID of the database, e.g., 69b7dc893bdd1bad9241263f',
+				placeholder: '69b7dc893bdd1bad9241263f',
+				description: 'The ID of the database or select one from the list',
 			},
 			{
 				displayName: 'Item ID',
@@ -653,7 +655,8 @@ export class Hypris implements INodeType {
 						operation: ['update', 'uploadFile', 'addMessage'],
 					},
 				},
-				description: 'The ID of the item',
+				placeholder: '69c123...abc',
+				description: 'The unique ID of the item to interact with',
 			},
 			{
 				displayName: 'Item IDs to Delete',
@@ -667,7 +670,8 @@ export class Hypris implements INodeType {
 						operation: ['delete'],
 					},
 				},
-				description: 'Comma separated list of Item IDs to delete',
+				placeholder: '69c1..., 69c2...',
+				description: 'Comma separated list of Item IDs to delete from the selected database',
 			},
 			{
 				displayName: 'Property Name or ID',
@@ -717,7 +721,8 @@ export class Hypris implements INodeType {
 						operation: ['update'],
 					},
 				},
-				description: 'The ID of the time tracker item to update',
+				placeholder: '69d567...f01',
+				description: 'The unique ID of the time tracker item to update',
 			},
 			{
 				displayName: 'View Name or ID',
@@ -785,7 +790,8 @@ export class Hypris implements INodeType {
 						operation: ['rename'],
 					},
 				},
-				description: 'The new name for the resource item',
+				placeholder: 'My New Property Name',
+				description: 'Enter the new name for the resource item selected above',
 			},
 			{
 				displayName: 'Include Drafts',
@@ -885,7 +891,8 @@ export class Hypris implements INodeType {
 						jsonParameters: [true],
 					},
 				},
-				description: 'The JSON payload with cellValues',
+				placeholder: '{\n  "cellValues": {\n    "myPropId": "myValue"\n  }\n}',
+				description: 'The JSON payload containing property values indexed by their Property IDs',
 			},
 			{
 				displayName: 'Property Name or ID',
@@ -980,7 +987,8 @@ export class Hypris implements INodeType {
 						operation: ['updateMessage'],
 					},
 				},
-				description: 'The ID of the message to update',
+				placeholder: '69e890...abc',
+				description: 'The unique ID of the conversation message to edit',
 			},
 			{
 				displayName: 'Started At',

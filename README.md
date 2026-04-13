@@ -41,6 +41,24 @@ Authentication is handled securely via the **Hypris API** credentials. You must 
 3. **Select Operation**: Choose the operation (e.g., Create, Update, Get All).
 4. **Link complex types**: Provide plain JSON strings to intuitively fill advanced column mapping. E.g.: `{"url": "https://url.com"}`, or simply `https://url.com` for links.
 
+## Quick Start
+
+1.  **Install**: Search for `n8n-nodes-hypris-api` in Community Nodes.
+2.  **Authenticate**: Use your Hypris User ID and Password.
+3.  **Create your first Item**: Select the `Item` resource and `Create` operation. Pick a workspace and database, then add properties.
+
+## Troubleshooting
+
+- **Authentication Failed (401)**: Ensure your credentials are correct and you have an active workspace in Hypris.
+- **Resource Not Found (404)**: Verify the Workspace ID or Database ID. Remember that IDs change if resources are deleted and recreated.
+- **Validation Errors**: Check the "JSON Parameters" mode if you are sending complex objects to link or relation fields.
+
+## Support & Links
+
+- **Hypris Website**: [hypris.com](https://hypris.com)
+- **Official Documentation**: [docs.hypris.com](https://docs.hypris.com)
+- **GitHub Repository**: [Zywiol/n8n-hypris](https://github.com/Zywiol/n8n-hypris)
+
 ## License
 
 MIT
