@@ -42,7 +42,7 @@ export class HyprisApi implements ICredentialType {
 	test: ICredentialTestRequest = {
 		request: {
 			baseURL: 'https://api.hypris.com',
-			url: '/v1/me/workspaces',
+			url: '/v1/me',
 			method: 'GET',
 		},
 	};
