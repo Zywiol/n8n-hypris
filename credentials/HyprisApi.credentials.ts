@@ -1,5 +1,6 @@
 import {
 	IAuthenticateGeneric,
+	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
 	Icon,
@@ -35,6 +36,14 @@ export class HyprisApi implements ICredentialType {
 				username: '={{$credentials.user}}',
 				password: '={{$credentials.password}}',
 			},
+		},
+	};
+
+	test: ICredentialTestRequest = {
+		request: {
+			baseURL: 'https://api.hypris.com',
+			url: '/v1/me/workspaces',
+			method: 'GET',
 		},
 	};
 }
