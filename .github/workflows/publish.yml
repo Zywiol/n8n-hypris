@@ -6,12 +6,15 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # Required for provenance
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,10 +27,11 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Git clean and safety
+      - name: Git Safety and Cleanup
         run: |
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          git clean -fdx -e node_modules # Clean all untracked files except node_modules
+          git config --global --add safe.directory "*"
+          git config --global --add safe.directory /home/runner/work/n8n-hypris/n8n-hypris
+          rm -rf n8n-official
 
       - name: Update npm
         run: npm install -g npm@latest
