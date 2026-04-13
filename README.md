@@ -32,11 +32,11 @@ npm install n8n-nodes-hypris-api
 
 ## Authentication
 
-Authentication is handled securely via the **Hypris New account** credentials. You must provide an active Hypris API Token (Auth Token) through the n8n UI when setting up your node credentials.
+Authentication is handled securely via the **Hypris API** credentials. You must provide an active Hypris API Token (Auth Token) through the n8n UI when setting up your node credentials.
 
 ## Usage
 
-1. **Add Node**: Search for "Hypris New" in the n8n node search panel.
+1. **Add Node**: Search for "Hypris" in the n8n node search panel.
 2. **Select Resource**: Choose between Workspace, Database, Item, Property, View, or ResourceItem.
 3. **Select Operation**: Choose the operation (e.g., Create, Update, Get All).
 4. **Link complex types**: Provide plain JSON strings to intuitively fill advanced column mapping. E.g.: `{"url": "https://url.com"}`, or simply `https://url.com` for links.
