@@ -636,8 +636,27 @@ export class Hypris implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						resource: ['property', 'view', 'database'],
+						resource: ['property', 'view'],
 						operation: ['create', 'getMany', 'delete', 'update', 'getFullDataOptions'],
+					},
+				},
+				placeholder: '69b7dc893bdd1bad9241263f',
+				description: 'The ID of the database or select one from the list',
+			},
+			{
+				displayName: 'Database Name or ID',
+				name: 'databaseId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getDatabases',
+					loadOptionsDependsOn: ['workspaceIdLoader'],
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['database'],
+						operation: ['getMany', 'delete', 'update', 'getFullDataOptions'],
 					},
 				},
 				placeholder: '69b7dc893bdd1bad9241263f',
@@ -1965,6 +1984,16 @@ export class Hypris implements INodeType {
 								(item.resourceEntity && item.resourceEntity.resourceType === 'database'),
 						);
 						data = { databases };
+					} else if (resource === 'item' && (operation === 'create' || operation === 'update')) {
+						if (responseData && responseData.data && responseData.data.databaseItem) {
+							const itemRaw = responseData.data.databaseItem;
+							data = {
+								itemId: itemRaw.id,
+								name: itemRaw.name,
+								createdAt: itemRaw.createdAt,
+								updatedAt: itemRaw.updatedAt,
+							};
+						}
 					}
 					returnData.push({ json: data });
 				}
