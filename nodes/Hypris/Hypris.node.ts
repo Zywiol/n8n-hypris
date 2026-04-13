@@ -15,7 +15,7 @@ export class Hypris implements INodeType {
 			async getWorkspaces(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: 'https://api.hypris.com/v1/me/workspaces',
 						json: true,
@@ -39,7 +39,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS WORKSPACE LOAD ERROR ---', error, '\n');
+					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading workspaces: ${(error as Error).message}`,
@@ -50,15 +50,15 @@ export class Hypris implements INodeType {
 			async getDatabases(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
-				console.error('\n*** DB LOAD TRIGGERED with workspaceIdLoader:', workspaceIdLoader);
+				// console removed
 				if (!workspaceIdLoader) return returnData;
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-items`,
 						json: true,
 					});
-					console.error('*** DB LOAD RESPONSE:', JSON.stringify(response).substring(0, 500));
+					// console removed
 					let resources = [];
 					if (Array.isArray(response)) resources = response;
 					else if (response && Array.isArray(response.data)) resources = response.data;
@@ -72,12 +72,7 @@ export class Hypris implements INodeType {
 							'Unexpected API response structure:' + JSON.stringify(response).substring(0, 100),
 						);
 
-					console.error(
-						'*** DB LOAD EXTRACTED RESOURCES COUNT:',
-						resources.length,
-						'FIRST RESOURCE:',
-						JSON.stringify(resources[0]),
-					);
+					// console removed
 					for (const res of resources) {
 						if (res.resourceEntity && res.resourceEntity.resourceType === 'database') {
 							returnData.push({
@@ -95,7 +90,7 @@ export class Hypris implements INodeType {
 						}
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS DB LOAD ERROR ---', error, '\n');
+					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading databases: ${(error as Error).message}`,
@@ -108,7 +103,7 @@ export class Hypris implements INodeType {
 				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
 				if (!workspaceIdLoader) return returnData;
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-space`,
 						json: true,
@@ -129,7 +124,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS SPACES LOAD ERROR ---', error, '\n');
+					// console removed
 				}
 				return returnData;
 			},
@@ -138,7 +133,7 @@ export class Hypris implements INodeType {
 				const databaseId = this.getCurrentNodeParameter('databaseId') as string;
 				if (!databaseId) return returnData;
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/database/${databaseId}/properties`,
 						qs: { includeDrafts: 'true' },
@@ -188,7 +183,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS PROPERTIES LOAD ERROR ---', error, '\n');
+					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading properties: ${(error as Error).message}`,
@@ -201,7 +196,7 @@ export class Hypris implements INodeType {
 				const databaseId = this.getCurrentNodeParameter('databaseId') as string;
 				if (!databaseId) return returnData;
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/database/${databaseId}/views`,
 						json: true,
@@ -231,7 +226,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS VIEW LOAD ERROR ---', error, '\n');
+					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading views: ${(error as Error).message}`,
@@ -244,7 +239,7 @@ export class Hypris implements INodeType {
 				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
 				if (!workspaceIdLoader) return returnData;
 				try {
-					const response = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-items`,
 						json: true,
@@ -268,7 +263,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					console.error('\n--- HYPRIS RESOURCE ITEMS LOAD ERROR ---', error, '\n');
+					// console removed
 					throw new Error(`Error loading resource items: ${(error as Error).message}`);
 				}
 				return returnData;
@@ -1326,7 +1321,7 @@ export class Hypris implements INodeType {
 			body.cellValues = {};
 			if (!properties || !properties.propertyValues) return;
 			if (!dbPropertiesCache[databaseId]) {
-				const propsResponse = await thisArg.helpers.requestWithAuthentication.call(
+				const propsResponse = await thisArg.helpers.httpRequestWithAuthentication.call(
 					thisArg,
 					'hyprisApi',
 					{
@@ -1349,7 +1344,7 @@ export class Hypris implements INodeType {
 				const propMeta = dbProps.find((p: any) => p.id === prop.propertyId);
 				if (propMeta && (propMeta.type === 'status' || propMeta.type === 'dropdown')) {
 					const isStatus = propMeta.type === 'status';
-					const optResponse = await thisArg.helpers.requestWithAuthentication.call(
+					const optResponse = await thisArg.helpers.httpRequestWithAuthentication.call(
 						thisArg,
 						'hyprisApi',
 						{
@@ -1383,7 +1378,7 @@ export class Hypris implements INodeType {
 							postBody.position = 0;
 							postBody.color = { colorType: 'palette', payload: 13 };
 						}
-						const createResp = await thisArg.helpers.requestWithAuthentication.call(
+						const createResp = await thisArg.helpers.httpRequestWithAuthentication.call(
 							thisArg,
 							'hyprisApi',
 							{
@@ -1561,7 +1556,7 @@ export class Hypris implements INodeType {
 
 						if (!databasePropertyIds || databasePropertyIds.length === 0) {
 							if (!dbPropertiesCache[databaseId]) {
-								const propsResp = await this.helpers.requestWithAuthentication.call(
+								const propsResp = await this.helpers.httpRequestWithAuthentication.call(
 									this,
 									'hyprisApi',
 									{
@@ -1669,13 +1664,10 @@ export class Hypris implements INodeType {
 						const createdProps = [];
 						for (const prop of propertiesList.propertyValues || []) {
 							const body = { title: prop.title, type: prop.type, state: 'published' };
-							console.log(
-								'Method: POST URL:',
-								`https://api.hypris.com/v1/database/${databaseId}/property`,
-							);
+							// console removed
 
 							try {
-								const res = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'POST',
 									url: `https://api.hypris.com/v1/database/${databaseId}/property`,
 									body,
@@ -1683,7 +1675,7 @@ export class Hypris implements INodeType {
 								});
 								createdProps.push(res);
 							} catch (e: any) {
-								console.error('Error Response:', e.message);
+								// console removed
 								throw e;
 							}
 						}
@@ -1700,14 +1692,14 @@ export class Hypris implements INodeType {
 						for (const propId of propertyIds) {
 
 							try {
-								const res = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'DELETE',
 									url: `https://api.hypris.com/v1/property/${propId}`,
 									json: true,
 								});
 								deletedProps.push({ propertyId: propId, status: res });
 							} catch (e: any) {
-								console.error('Error Response:', e.message);
+								// console removed
 								throw e;
 							}
 						}
@@ -1754,13 +1746,10 @@ export class Hypris implements INodeType {
 						const createdViews = [];
 						for (const view of viewsList.viewValues || []) {
 							const body = { name: view.title, type: view.type };
-							console.log(
-								'Method: POST URL:',
-								`https://api.hypris.com/v1/database/${databaseId}/view`,
-							);
+							// console removed
 
 							try {
-								const res = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'POST',
 									url: `https://api.hypris.com/v1/database/${databaseId}/view`,
 									body,
@@ -1768,7 +1757,7 @@ export class Hypris implements INodeType {
 								});
 								createdViews.push(res);
 							} catch (e: any) {
-								console.error('Error Response:', e.message);
+								// console removed
 								throw e;
 							}
 						}
@@ -1799,7 +1788,7 @@ export class Hypris implements INodeType {
 						for (const viewId of viewIds) {
 
 							try {
-								const res = await this.helpers.requestWithAuthentication.call(this, 'hyprisApi', {
+								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 									method: 'DELETE',
 									url: `https://api.hypris.com/v1/view/${viewId}`,
 									headers: { Accept: 'application/json' },
@@ -1807,7 +1796,7 @@ export class Hypris implements INodeType {
 								});
 								deletedViews.push({ viewId, status: res });
 							} catch (e: any) {
-								console.error('Error Response:', e.message);
+								// console removed
 								throw e;
 							}
 						}
@@ -1877,7 +1866,7 @@ export class Hypris implements INodeType {
 
 						if (!resourceSpaceId) {
 							try {
-								const itemsResp = await this.helpers.requestWithAuthentication.call(
+								const itemsResp = await this.helpers.httpRequestWithAuthentication.call(
 									this,
 									'hyprisApi',
 									{
@@ -1930,7 +1919,7 @@ export class Hypris implements INodeType {
 
 				if (options) {
 
-					const responseData = await this.helpers.requestWithAuthentication.call(
+					const responseData = await this.helpers.httpRequestWithAuthentication.call(
 						this,
 						'hyprisApi',
 						options,
