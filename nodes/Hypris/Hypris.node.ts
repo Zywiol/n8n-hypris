@@ -372,6 +372,12 @@ export class Hypris implements INodeType {
 						action: 'Update an item',
 					},
 					{
+						name: 'Get',
+						value: 'get',
+						description: 'Get an item by ID',
+						action: 'Get an item',
+					},
+					{
 						name: 'List Items (Filter)',
 						value: 'createFilterGroup',
 						description: 'List or filter items in a database',
@@ -710,7 +716,7 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['item'],
-						operation: ['update', 'uploadFile', 'addMessage', 'updateLocation'],
+						operation: ['get', 'update', 'uploadFile', 'addMessage', 'updateLocation'],
 					},
 				},
 				placeholder: '69c123...abc',
@@ -1969,6 +1975,15 @@ export class Hypris implements INodeType {
 							body: payload,
 							json: true,
 						};
+					} else if (operation === 'get') {
+						const itemId = this.getNodeParameter('itemId', i) as string;
+
+						options = {
+							method: 'GET',
+							url: `https://api.hypris.com/v1/item/${itemId}`,
+							headers: { Accept: 'application/json' },
+							json: true,
+						};
 					}
 				} else if (resource === 'property') {
 					if (operation === 'create') {
@@ -2283,6 +2298,17 @@ export class Hypris implements INodeType {
 						
 						returnData.push(...databases.map((db: any) => ({ json: db })));
 						continue;
+					} else if (resource === 'item' && operation === 'get') {
+						if (responseData && responseData.data && responseData.data.databaseItem) {
+							const itemRaw = responseData.data.databaseItem;
+							data = {
+								itemId: itemRaw.id,
+								name: itemRaw.name,
+								createdAt: itemRaw.createdAt,
+								updatedAt: itemRaw.updatedAt,
+								cellValues: itemRaw.cellValues,
+							};
+						}
 					} else if (resource === 'item' && (operation === 'create' || operation === 'update')) {
 						if (responseData && responseData.data && responseData.data.databaseItem) {
 							const itemRaw = responseData.data.databaseItem;
