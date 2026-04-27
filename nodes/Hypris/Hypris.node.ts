@@ -4,9 +4,11 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	IHttpRequestOptions,
+	NodeApiError,
 	NodeOperationError,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
+	JsonObject,
 } from 'n8n-workflow';
 
 export class Hypris implements INodeType {
@@ -39,7 +41,6 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading workspaces: ${(error as Error).message}`,
@@ -50,7 +51,6 @@ export class Hypris implements INodeType {
 			async getDatabases(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
-				// console removed
 				if (!workspaceIdLoader) return returnData;
 				try {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
@@ -58,7 +58,6 @@ export class Hypris implements INodeType {
 						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-items`,
 						json: true,
 					});
-					// console removed
 					let resources = [];
 					if (Array.isArray(response)) resources = response;
 					else if (response && Array.isArray(response.data)) resources = response.data;
@@ -72,7 +71,6 @@ export class Hypris implements INodeType {
 							'Unexpected API response structure:' + JSON.stringify(response).substring(0, 100),
 						);
 
-					// console removed
 					for (const res of resources) {
 						if (res.resourceEntity && res.resourceEntity.resourceType === 'database') {
 							returnData.push({
@@ -90,7 +88,6 @@ export class Hypris implements INodeType {
 						}
 					}
 				} catch (error) {
-					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading databases: ${(error as Error).message}`,
@@ -123,7 +120,7 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					// console removed
+					// Intentionally swallow: load options failures should not break the node UI; return whatever was collected so far.
 				}
 				return returnData;
 			},
@@ -154,13 +151,13 @@ export class Hypris implements INodeType {
 						operation = this.getCurrentNodeParameter('operation') as string;
 						resource = this.getCurrentNodeParameter('resource') as string;
 					} catch (e) {
-						// Ignoruj błędy pobierania parametrów, jeśli brakuje ich w kontekście
+						// Ignore parameter retrieval errors when context is missing
 					}
 
 					for (const prop of properties) {
 						let type = String(prop.type || '').toLowerCase();
 						if (resource === 'property' && operation === 'delete' && (type === 'name' || prop.title === 'Name')) {
-							continue; // Wyklucz name z opcji usuwania
+							continue; // Exclude name from delete options
 						}
 						if (resource === 'item') {
 							if (operation === 'create' || operation === 'update') {
@@ -196,7 +193,6 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading properties: ${(error as Error).message}`,
@@ -239,7 +235,6 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					// console removed
 					throw new NodeOperationError(
 						this.getNode(),
 						`Error loading views: ${(error as Error).message}`,
@@ -276,7 +271,6 @@ export class Hypris implements INodeType {
 						});
 					}
 				} catch (error) {
-					// console removed
 					throw new Error(`Error loading resource items: ${(error as Error).message}`);
 				}
 				return returnData;
@@ -780,7 +774,7 @@ export class Hypris implements INodeType {
 						operation: ['updateLocation'],
 					},
 				},
-				description: 'The formatted address string (e.g. "Krakowskie Przedmieście 1, Warszawa")',
+				description: 'The formatted address string (e.g. "10 Downing Street, London")',
 			},
 			{
 				displayName: 'Country',
@@ -1059,7 +1053,7 @@ export class Hypris implements INodeType {
 				],
 			},
 			{
-				displayName: 'Auto-create Missing Status/Dropdown Options',
+				displayName: 'Auto-Create Missing Status/Dropdown Options',
 				name: 'autoCreateOptions',
 				type: 'boolean',
 				default: true,
@@ -1336,7 +1330,7 @@ export class Hypris implements INodeType {
 				description: 'Max number of items to fetch',
 			},
 			{
-				displayName: 'Columns To Fetch',
+				displayName: 'Columns to Fetch',
 				name: 'databasePropertyIds',
 				type: 'multiOptions',
 				typeOptions: {
@@ -1620,7 +1614,9 @@ export class Hypris implements INodeType {
 						if (finalValue.startsWith('{')) {
 							try {
 								finalValue = JSON.parse(finalValue);
-							} catch (e) {}
+							} catch (e) {
+								// Not valid JSON; fall through and treat as a plain date string below.
+							}
 						} else if (finalValue) {
 							let dateStr = finalValue;
 							let timeStr = null;
@@ -1817,8 +1813,6 @@ export class Hypris implements INodeType {
 							}
 						}
 
-						console.log(`[Hypris] Update Item ${itemId} payload:`, JSON.stringify(body, null, 2));
-
 						options = {
 							method: 'PATCH',
 							url: `https://api.hypris.com/v1/item/${itemId}/cell-values`,
@@ -1857,8 +1851,6 @@ export class Hypris implements INodeType {
 								[locationPropertyId]: locationValue
 							}
 						};
-
-						console.log(`[Hypris] Update Location Item ${itemId} payload:`, JSON.stringify(body, null, 2));
 
 						options = {
 							method: 'PATCH',
@@ -2011,7 +2003,7 @@ export class Hypris implements INodeType {
 									});
 								}
 							} catch (e: any) {
-								throw e;
+								throw new NodeApiError(this.getNode(), e as JsonObject);
 							}
 						}
 
@@ -2035,7 +2027,7 @@ export class Hypris implements INodeType {
 									json: true,
 								});
 							} catch (e: any) {
-								throw e;
+								throw new NodeApiError(this.getNode(), e as JsonObject);
 							}
 						}
 
@@ -2081,7 +2073,6 @@ export class Hypris implements INodeType {
 						const createdViews = [];
 						for (const view of viewsList.viewValues || []) {
 							const body = { name: view.title, type: view.type };
-							// console removed
 
 							try {
 								const res = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
@@ -2099,7 +2090,7 @@ export class Hypris implements INodeType {
 									});
 								}
 							} catch (e: any) {
-								throw e;
+								throw new NodeApiError(this.getNode(), e as JsonObject);
 							}
 						}
 
@@ -2137,7 +2128,7 @@ export class Hypris implements INodeType {
 									json: true,
 								});
 							} catch (e: any) {
-								throw e;
+								throw new NodeApiError(this.getNode(), e as JsonObject);
 							}
 						}
 
@@ -2156,7 +2147,7 @@ export class Hypris implements INodeType {
 						const workspaceTitle = this.getNodeParameter('workspaceTitle', i) as string;
 						const workspaceType = this.getNodeParameter('workspaceType', i, 'team') as string;
 
-						// Auto-generowanie slug'a, ponieważ API zawsze go wymaga
+						// Auto-generate slug because the API always requires it
 						let autoName = workspaceTitle.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 						if (autoName.length < 3) autoName = autoName + '-ws';
 
@@ -2216,8 +2207,6 @@ export class Hypris implements INodeType {
 							title: dbTitle,
 						};
 						if (resourceSpaceId) body.resourceSpaceId = resourceSpaceId;
-
-						console.log(`[Hypris-Create-Database] Gotowy ostateczny payload na serwer: `, JSON.stringify(body, null, 2));
 
 						options = {
 							method: 'POST',
@@ -2426,7 +2415,10 @@ export class Hypris implements INodeType {
 					returnData.push({ json: { error: (error as any).message } });
 					continue;
 				}
-				throw error;
+				if (error instanceof NodeApiError || error instanceof NodeOperationError) {
+					throw error;
+				}
+				throw new NodeApiError(this.getNode(), error as JsonObject);
 			}
 		}
 
