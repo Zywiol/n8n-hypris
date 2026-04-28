@@ -591,7 +591,7 @@ export class Hypris implements INodeType {
 				default: 'getAll',
 			},
 			{
-				displayName: 'Workspace (For Auto-loading Databases)',
+				displayName: 'Workspace (For Auto-Loading Databases)',
 				name: 'workspaceIdLoader',
 				type: 'options',
 				typeOptions: {
@@ -1296,7 +1296,7 @@ export class Hypris implements INodeType {
 						operation: ['createWorkspace'],
 					},
 				},
-				description: 'The display title for the workspace (e.g. Nowy Workspace)',
+				description: 'The display title for the workspace (e.g. My Workspace)',
 			},
 			{
 				displayName: 'Workspace Type',
@@ -1380,7 +1380,7 @@ export class Hypris implements INodeType {
 					{ name: 'Location', value: 'location' },
 					{ name: 'Link', value: 'link' },
 					{ name: 'Relation', value: 'relation' },
-					{ name: 'Reverse-relation', value: 'reverse-relation' },
+					{ name: 'Reverse-Relation', value: 'reverse-relation' },
 					{ name: 'Teleport', value: 'teleport' },
 					{ name: 'Formula', value: 'formula' },
 				],
@@ -1439,7 +1439,7 @@ export class Hypris implements INodeType {
 									{ name: 'Location', value: 'location' },
 									{ name: 'Link', value: 'link' },
 									{ name: 'Relation', value: 'relation' },
-									{ name: 'Reverse-relation', value: 'reverse-relation' },
+									{ name: 'Reverse-Relation', value: 'reverse-relation' },
 									{ name: 'Teleport', value: 'teleport' },
 									{ name: 'Formula', value: 'formula' },
 									{ name: 'Date', value: 'date' },
