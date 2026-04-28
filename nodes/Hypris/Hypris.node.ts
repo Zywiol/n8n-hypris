@@ -518,10 +518,10 @@ export class Hypris implements INodeType {
 				},
 				options: [
 					{
-						name: 'Get All',
+						name: 'Get Many',
 						value: 'getAllWorkspaces',
-						description: 'Get all workspaces for the current user',
-						action: 'Get all workspaces',
+						description: 'Get many workspaces for the current user',
+						action: 'Get many workspaces',
 					},
 					{
 						name: 'Create',
@@ -576,10 +576,10 @@ export class Hypris implements INodeType {
 						action: 'Create a database',
 					},
 					{
-						name: 'Get All',
+						name: 'Get Many',
 						value: 'getAll',
-						description: 'List all databases in a workspace',
-						action: 'Get all databases',
+						description: 'Get many databases in a workspace',
+						action: 'Get many databases',
 					},
 					{
 						name: 'Delete',
@@ -591,7 +591,7 @@ export class Hypris implements INodeType {
 				default: 'getAll',
 			},
 			{
-				displayName: 'Workspace (For Auto-Loading Databases)',
+				displayName: 'Workspace Name or ID',
 				name: 'workspaceIdLoader',
 				type: 'options',
 				typeOptions: {
@@ -1470,7 +1470,7 @@ export class Hypris implements INodeType {
 				description: 'Name of the database',
 			},
 			{
-				displayName: 'Resource Space',
+				displayName: 'Resource Space Name or ID',
 				name: 'resourceSpaceId',
 				type: 'options',
 				typeOptions: {
