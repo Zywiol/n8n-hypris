@@ -2749,15 +2749,20 @@ export class Hypris implements INodeType {
 					) {
 						if (responseData && responseData.data && Array.isArray(responseData.data.databaseItemsGroups)) {
 							const items = responseData.data.databaseItemsGroups.flat();
-							returnData.push(...items.map((itemRaw: any) => ({
-								json: {
-									itemId: itemRaw.id,
-									name: itemRaw.name,
-									createdAt: itemRaw.createdAt,
-									updatedAt: itemRaw.updatedAt,
-									cellValues: itemRaw.cellValues,
-								}
-							})));
+							if (items.length === 0) {
+								returnData.push({ json: { found: false, count: 0, items: [] } });
+							} else {
+								returnData.push(...items.map((itemRaw: any) => ({
+									json: {
+										found: true,
+										itemId: itemRaw.id,
+										name: itemRaw.name,
+										createdAt: itemRaw.createdAt,
+										updatedAt: itemRaw.updatedAt,
+										cellValues: itemRaw.cellValues,
+									}
+								})));
+							}
 							continue;
 						}
 					} else if (resource === 'item' && operation === 'delete') {
