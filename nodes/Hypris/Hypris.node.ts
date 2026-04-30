@@ -124,6 +124,44 @@ export class Hypris implements INodeType {
 				}
 				return returnData;
 			},
+			async getFolders(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
+				if (!workspaceIdLoader) return returnData;
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
+						method: 'GET',
+						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-items`,
+						json: true,
+					});
+					let resources = [];
+					if (Array.isArray(response)) resources = response;
+					else if (response && Array.isArray(response.data)) resources = response.data;
+					else if (response && response.data && Array.isArray(response.data.resourceItems))
+						resources = response.data.resourceItems;
+					else if (response && Array.isArray(response.resourceItems))
+						resources = response.resourceItems;
+
+					for (const res of resources) {
+						const resourceType =
+							(res.resourceEntity && res.resourceEntity.resourceType) || res.resourceType;
+						if (resourceType !== 'folder') continue;
+						const folderId =
+							(res.resourceEntity && res.resourceEntity.resourceId) || res.resourceId || res.id;
+						const folderName =
+							res.name ||
+							(res.resourceEntity && res.resourceEntity.payload && res.resourceEntity.payload.name) ||
+							folderId;
+						returnData.push({
+							name: folderName,
+							value: folderId,
+						});
+					}
+				} catch (error) {
+					// Intentionally swallow: load options failures should not break the node UI.
+				}
+				return returnData;
+			},
 			async getProperties(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const databaseId = this.getCurrentNodeParameter('databaseId') as string;
@@ -332,6 +370,10 @@ export class Hypris implements INodeType {
 					{
 						name: 'Resource Item',
 						value: 'resourceItem',
+					},
+					{
+						name: 'File',
+						value: 'file',
 					},
 				],
 				default: 'item',
@@ -591,6 +633,26 @@ export class Hypris implements INodeType {
 				default: 'getAll',
 			},
 			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Many',
+						value: 'getManyFiles',
+						description: 'List files and sub-folders inside a folder',
+						action: 'Get many files in a folder',
+					},
+				],
+				default: 'getManyFiles',
+			},
+			{
 				displayName: 'Workspace Name or ID',
 				name: 'workspaceIdLoader',
 				type: 'options',
@@ -602,13 +664,14 @@ export class Hypris implements INodeType {
 					'Select a workspace to automatically load its databases below. You can leave this empty if you enter the Database ID manually.',
 				displayOptions: {
 					show: {
-						resource: ['item', 'property', 'view', 'resourceItem', 'workspace', 'database'],
+						resource: ['item', 'property', 'view', 'resourceItem', 'workspace', 'database', 'file'],
 						operation: [
 							'create',
 							'delete',
 							'update',
 							'createFilterGroup',
 							'getMany',
+							'getManyFiles',
 							'getFullDataOptions',
 							'rename',
 							'getResources',
@@ -1487,6 +1550,93 @@ export class Hypris implements INodeType {
 				description:
 					'Select a Space where the database should be created. Requires selecting a Workspace above first.',
 			},
+			{
+				displayName: 'Folder Name or ID',
+				name: 'folderId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getFolders',
+					loadOptionsDependsOn: ['workspaceIdLoader'],
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['getManyFiles'],
+					},
+				},
+				description:
+					'Select a folder from the workspace above, or enter a folder ID manually. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'Limit',
+				name: 'limit',
+				type: 'number',
+				typeOptions: { minValue: 1 },
+				default: 50,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['getManyFiles'],
+					},
+				},
+				description: 'Max number of items to return',
+			},
+			{
+				displayName: 'Additional Options',
+				name: 'additionalOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['getManyFiles'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Offset',
+						name: 'offset',
+						type: 'number',
+						typeOptions: { minValue: 0 },
+						default: 0,
+						description: 'Number of items to skip before returning results',
+					},
+					{
+						displayName: 'Search',
+						name: 'search',
+						type: 'string',
+						default: '',
+						description: 'Filter results by name (case-insensitive substring)',
+					},
+					{
+						displayName: 'Sort By',
+						name: 'sort',
+						type: 'options',
+						options: [
+							{ name: 'Created At', value: 'createdAt' },
+							{ name: 'Name', value: 'name' },
+							{ name: 'Size', value: 'size' },
+							{ name: 'Type', value: 'type' },
+						],
+						default: 'createdAt',
+						description: 'Field to sort by',
+					},
+					{
+						displayName: 'Sort Direction',
+						name: 'sortDirection',
+						type: 'options',
+						options: [
+							{ name: 'Ascending', value: 'asc' },
+							{ name: 'Descending', value: 'desc' },
+						],
+						default: 'desc',
+						description: 'Sort direction',
+					},
+				],
+			},
 		],
 	};
 
@@ -2185,6 +2335,31 @@ export class Hypris implements INodeType {
 							json: true,
 						};
 					}
+				} else if (resource === 'file') {
+					if (operation === 'getManyFiles') {
+						const folderId = this.getNodeParameter('folderId', i) as string;
+						const limit = this.getNodeParameter('limit', i, 50) as number;
+						const additional = this.getNodeParameter('additionalOptions', i, {}) as {
+							offset?: number;
+							search?: string;
+							sort?: string;
+							sortDirection?: string;
+						};
+
+						const qs: any = { limit };
+						if (typeof additional.offset === 'number') qs.offset = additional.offset;
+						if (additional.search) qs.search = additional.search;
+						if (additional.sort) qs.sort = additional.sort;
+						if (additional.sortDirection) qs.sortDirection = additional.sortDirection;
+
+						options = {
+							method: 'GET',
+							url: `https://api.hypris.com/v1/folder/${folderId}/items`,
+							qs,
+							headers: { Accept: 'application/json' },
+							json: true,
+						};
+					}
 				} else if (resource === 'database') {
 					if (operation === 'getAll') {
 						const workspaceId = this.getNodeParameter('workspaceIdLoader', i) as string;
@@ -2286,6 +2461,37 @@ export class Hypris implements INodeType {
 							});
 						
 						returnData.push(...databases.map((db: any) => ({ json: db })));
+						continue;
+					} else if (resource === 'file' && operation === 'getManyFiles') {
+						let cloudItems: any[] = [];
+						if (Array.isArray(responseData)) cloudItems = responseData;
+						else if (responseData && Array.isArray(responseData.data)) cloudItems = responseData.data;
+						else if (
+							responseData &&
+							responseData.data &&
+							Array.isArray(responseData.data.cloudItems)
+						)
+							cloudItems = responseData.data.cloudItems;
+						else if (responseData && Array.isArray(responseData.cloudItems))
+							cloudItems = responseData.cloudItems;
+
+						returnData.push(
+							...cloudItems.map((entry: any) => ({
+								json: {
+									id: entry.id,
+									name: entry.name,
+									type: entry.type,
+									folderId: entry.folderId,
+									parentCloudItemId: entry.parentCloudItemId,
+									itemsCount: entry.itemsCount,
+									size: entry.size,
+									file: entry.file,
+									createdAt: entry.createdAt,
+									updatedAt: entry.updatedAt,
+									authorEntity: entry.authorEntity,
+								},
+							})),
+						);
 						continue;
 					} else if (resource === 'item' && operation === 'get') {
 						if (responseData && responseData.data && responseData.data.databaseItem) {
