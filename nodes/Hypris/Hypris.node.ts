@@ -649,6 +649,24 @@ export class Hypris implements INodeType {
 						description: 'List files and sub-folders inside a folder',
 						action: 'Get many files in a folder',
 					},
+					{
+						name: 'Rename',
+						value: 'renameCloudItem',
+						description: 'Rename a file or sub-folder (cloud item)',
+						action: 'Rename a file',
+					},
+					{
+						name: 'Move to Folder',
+						value: 'moveToFolder',
+						description: 'Move a cloud item into another sub-folder (catalog) within the same root folder',
+						action: 'Move a file to another sub-folder',
+					},
+					{
+						name: 'Move to Root',
+						value: 'moveToRoot',
+						description: 'Move a cloud item to the root level of its folder (out of any sub-folder)',
+						action: 'Move a file to folder root',
+					},
 				],
 				default: 'getManyFiles',
 			},
@@ -672,6 +690,7 @@ export class Hypris implements INodeType {
 							'createFilterGroup',
 							'getMany',
 							'getManyFiles',
+							'moveToRoot',
 							'getFullDataOptions',
 							'rename',
 							'getResources',
@@ -1563,7 +1582,7 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['file'],
-						operation: ['getManyFiles'],
+						operation: ['getManyFiles', 'moveToRoot'],
 					},
 				},
 				description:
@@ -1636,6 +1655,50 @@ export class Hypris implements INodeType {
 						description: 'Sort direction',
 					},
 				],
+			},
+			{
+				displayName: 'Cloud Item ID',
+				name: 'cloudItemId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['renameCloudItem', 'moveToFolder', 'moveToRoot'],
+					},
+				},
+				placeholder: '69f36320...d839',
+				description: 'The ID of the file or sub-folder. Copy it from a Get Many response.',
+			},
+			{
+				displayName: 'New Name',
+				name: 'cloudItemNewName',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['renameCloudItem'],
+					},
+				},
+				description: 'The new name for the file or sub-folder',
+			},
+			{
+				displayName: 'Target Parent Cloud Item ID',
+				name: 'targetParentCloudItemId',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['file'],
+						operation: ['moveToFolder'],
+					},
+				},
+				placeholder: '69f36b9f...e4bb',
+				description: 'The ID of the destination sub-folder (cloud item of type catalog). Copy it from a Get Many response.',
 			},
 		],
 	};
@@ -2361,6 +2424,39 @@ export class Hypris implements INodeType {
 							headers: { Accept: 'application/json' },
 							json: true,
 						};
+					} else if (operation === 'renameCloudItem') {
+						const cloudItemId = this.getNodeParameter('cloudItemId', i) as string;
+						const newName = this.getNodeParameter('cloudItemNewName', i) as string;
+						options = {
+							method: 'PUT',
+							url: `https://api.hypris.com/v1/cloud-item/${cloudItemId}/name`,
+							headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+							body: { name: newName },
+							json: true,
+						};
+					} else if (operation === 'moveToFolder') {
+						const cloudItemId = this.getNodeParameter('cloudItemId', i) as string;
+						const targetParentCloudItemId = this.getNodeParameter(
+							'targetParentCloudItemId',
+							i,
+						) as string;
+						options = {
+							method: 'PUT',
+							url: `https://api.hypris.com/v1/cloud-item/${cloudItemId}/parent-cloud-item-id`,
+							headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+							body: { parentCloudItemId: targetParentCloudItemId },
+							json: true,
+						};
+					} else if (operation === 'moveToRoot') {
+						const cloudItemId = this.getNodeParameter('cloudItemId', i) as string;
+						const folderId = this.getNodeParameter('folderId', i) as string;
+						options = {
+							method: 'PUT',
+							url: `https://api.hypris.com/v1/cloud-item/${cloudItemId}/parent-cloud-item-id`,
+							headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+							body: { parentCloudItemId: folderId },
+							json: true,
+						};
 					}
 				} else if (resource === 'database') {
 					if (operation === 'getAll') {
@@ -2464,6 +2560,13 @@ export class Hypris implements INodeType {
 						
 						returnData.push(...databases.map((db: any) => ({ json: db })));
 						continue;
+					} else if (
+						resource === 'file' &&
+						(operation === 'renameCloudItem' ||
+							operation === 'moveToFolder' ||
+							operation === 'moveToRoot')
+					) {
+						data = { success: true };
 					} else if (resource === 'file' && operation === 'getManyFiles') {
 						let cloudItems: any[] = [];
 						if (Array.isArray(responseData)) cloudItems = responseData;
