@@ -2581,21 +2581,22 @@ export class Hypris implements INodeType {
 							cloudItems = responseData.cloudItems;
 
 						returnData.push(
-							...cloudItems.map((entry: any) => ({
-								json: {
-									id: entry.id,
-									name: entry.name,
-									type: entry.type,
-									folderId: entry.folderId,
-									parentCloudItemId: entry.parentCloudItemId,
-									itemsCount: entry.itemsCount,
-									size: entry.size,
-									file: entry.file,
-									createdAt: entry.createdAt,
-									updatedAt: entry.updatedAt,
-									authorEntity: entry.authorEntity,
-								},
-							})),
+							...cloudItems
+								.filter((entry: any) => entry.type === 'file')
+								.map((entry: any) => ({
+									json: {
+										id: entry.id,
+										name: entry.name,
+										type: entry.type,
+										folderId: entry.folderId,
+										parentCloudItemId: entry.parentCloudItemId,
+										size: entry.size,
+										file: entry.file,
+										createdAt: entry.createdAt,
+										updatedAt: entry.updatedAt,
+										authorEntity: entry.authorEntity,
+									},
+								})),
 						);
 						continue;
 					} else if (resource === 'item' && operation === 'get') {
