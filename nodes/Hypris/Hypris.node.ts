@@ -420,6 +420,12 @@ export class Hypris implements INodeType {
 						action: 'List items',
 					},
 					{
+						name: 'Find',
+						value: 'findItems',
+						description: 'Find items in a database by filtering on a specific column value',
+						action: 'Find items in a database',
+					},
+					{
 						name: 'Upload File',
 						value: 'uploadFile',
 						description: 'Upload a file to a files property of an item',
@@ -688,6 +694,7 @@ export class Hypris implements INodeType {
 							'delete',
 							'update',
 							'createFilterGroup',
+							'findItems',
 							'getMany',
 							'getManyFiles',
 							'moveToRoot',
@@ -718,6 +725,7 @@ export class Hypris implements INodeType {
 							'delete',
 							'update',
 							'createFilterGroup',
+							'findItems',
 							'uploadFile',
 							'addMessage',
 							'updateLocation',
@@ -1406,7 +1414,7 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['item'],
-						operation: ['createFilterGroup'],
+						operation: ['createFilterGroup', 'findItems'],
 					},
 				},
 				description: 'Max number of items to fetch',
@@ -1423,11 +1431,67 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['item'],
-						operation: ['createFilterGroup'],
+						operation: ['createFilterGroup', 'findItems'],
 					},
 				},
 				description:
 					'Select which columns to fetch. Leave empty to automatically fetch all properties.',
+			},
+			{
+				displayName: 'Search Column Name or ID',
+				name: 'searchPropertyId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getProperties',
+					loadOptionsDependsOn: ['databaseId'],
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['findItems'],
+					},
+				},
+				description:
+					'The property/column to filter by. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'Operator',
+				name: 'searchOperator',
+				type: 'options',
+				options: [
+					{ name: 'Equals', value: 'equals' },
+					{ name: 'Not Equals', value: 'not-equals' },
+					{ name: 'Contains', value: 'contains' },
+					{ name: 'Starts With', value: 'starts-with' },
+					{ name: 'Ends With', value: 'ends-with' },
+					{ name: 'Greater Than', value: 'greater-than' },
+					{ name: 'Less Than', value: 'less-than' },
+					{ name: 'Array Includes', value: 'array-includes' },
+				],
+				default: 'equals',
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['findItems'],
+					},
+				},
+				description: 'How to match the value against the selected column',
+			},
+			{
+				displayName: 'Search Value',
+				name: 'searchValue',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['item'],
+						operation: ['findItems'],
+					},
+				},
+				description: 'The value to match against the selected column',
 			},
 			{
 				displayName: 'Property Title',
@@ -2112,6 +2176,65 @@ export class Hypris implements INodeType {
 							body,
 							json: true,
 						};
+					} else if (operation === 'findItems') {
+						const databaseId = this.getNodeParameter('databaseId', i) as string;
+						const limit = this.getNodeParameter('limit', i, 100) as number;
+						const searchPropertyId = this.getNodeParameter('searchPropertyId', i) as string;
+						const searchOperator = this.getNodeParameter(
+							'searchOperator',
+							i,
+							'equals',
+						) as string;
+						const searchValue = this.getNodeParameter('searchValue', i) as string;
+						let databasePropertyIds = this.getNodeParameter(
+							'databasePropertyIds',
+							i,
+							[],
+						) as string[];
+
+						if (!databasePropertyIds || databasePropertyIds.length === 0) {
+							if (!dbPropertiesCache[databaseId]) {
+								const propsResp = await this.helpers.httpRequestWithAuthentication.call(
+									this,
+									'hyprisApi',
+									{
+										method: 'GET',
+										url: `https://api.hypris.com/v1/database/${databaseId}/properties`,
+										json: true,
+									},
+								);
+								dbPropertiesCache[databaseId] = Array.isArray(propsResp)
+									? propsResp
+									: propsResp?.data?.properties || propsResp?.properties || propsResp?.data || [];
+							}
+							databasePropertyIds = dbPropertiesCache[databaseId].map((p: any) => p.id);
+						}
+
+						const body = {
+							filterGroups: [
+								{
+									offset: 0,
+									limit,
+									filter: {
+										type: 'property',
+										id: searchPropertyId,
+										operator: { type: searchOperator },
+										payload: { type: 'static', value: searchValue },
+										isDisabled: false,
+									},
+								},
+							],
+							databasePropertyIds,
+						};
+
+						options = {
+							method: 'POST',
+							url: `https://api.hypris.com/v1/database/${databaseId}/items/filter-groups`,
+							qs: { sortDirection: '1' },
+							headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+							body,
+							json: true,
+						};
 					} else if (operation === 'uploadFile') {
 						const itemId = this.getNodeParameter('itemId', i) as string;
 						const filePropertyId = this.getNodeParameter('filePropertyId', i) as string;
@@ -2620,7 +2743,10 @@ export class Hypris implements INodeType {
 								updatedAt: itemRaw.updatedAt,
 							};
 						}
-					} else if (resource === 'item' && operation === 'getMany') {
+					} else if (
+						resource === 'item' &&
+						(operation === 'getMany' || operation === 'findItems')
+					) {
 						if (responseData && responseData.data && Array.isArray(responseData.data.databaseItemsGroups)) {
 							const items = responseData.data.databaseItemsGroups.flat();
 							returnData.push(...items.map((itemRaw: any) => ({
