@@ -2346,11 +2346,13 @@ export class Hypris implements INodeType {
 							sortDirection?: string;
 						};
 
-						const qs: any = { limit };
-						if (typeof additional.offset === 'number') qs.offset = additional.offset;
-						if (additional.search) qs.search = additional.search;
-						if (additional.sort) qs.sort = additional.sort;
-						if (additional.sortDirection) qs.sortDirection = additional.sortDirection;
+						const qs: any = {
+							offset: typeof additional.offset === 'number' ? additional.offset : 0,
+							limit,
+							search: additional.search ?? '',
+							sort: additional.sort ?? 'createdAt',
+							sortDirection: additional.sortDirection ?? 'desc',
+						};
 
 						options = {
 							method: 'GET',
