@@ -698,6 +698,7 @@ export class Hypris implements INodeType {
 							'getMany',
 							'getManyFiles',
 							'moveToRoot',
+							'uploadFile',
 							'getFullDataOptions',
 							'rename',
 							'getResources',
@@ -2243,19 +2244,19 @@ export class Hypris implements INodeType {
 						const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 						const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
 
+						const FormData = require('form-data');
+						const form = new FormData();
+						form.append('file', fileBuffer, {
+							filename: binaryData.fileName,
+							contentType: binaryData.mimeType,
+						});
+
 						options = {
 							method: 'POST',
 							url: `https://api.hypris.com/v1/item/${itemId}/property/${filePropertyId}/file`,
-							headers: { Accept: 'application/json' },
-							formData: {
-								file: {
-									value: fileBuffer,
-									options: {
-										filename: binaryData.fileName,
-										contentType: binaryData.mimeType,
-									},
-								},
-							},
+							body: form,
+							headers: { ...form.getHeaders(), Accept: 'application/json' },
+							json: false,
 						} as any;
 					} else if (operation === 'deleteFile') {
 						const fileId = this.getNodeParameter('fileId', i) as string;
@@ -2765,6 +2766,17 @@ export class Hypris implements INodeType {
 							}
 							continue;
 						}
+					} else if (resource === 'item' && operation === 'uploadFile') {
+						let parsed: any = responseData;
+						if (typeof responseData === 'string') {
+							try {
+								parsed = JSON.parse(responseData);
+							} catch (e) {
+								parsed = { raw: responseData };
+							}
+						}
+						const cellFileItem = parsed?.data?.cellFileItem ?? parsed?.cellFileItem ?? null;
+						data = cellFileItem ? { cellFileItem } : { success: true, response: parsed };
 					} else if (resource === 'item' && operation === 'delete') {
 						data = { success: true };
 					} else if (resource === 'property' && operation === 'getMany') {
