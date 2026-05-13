@@ -192,7 +192,19 @@ export class Hypris implements INodeType {
 			},
 			async getSubFolders(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
-				const folderId = this.getCurrentNodeParameter('folderId') as string;
+				let folderId = '';
+				try {
+					folderId = (this.getCurrentNodeParameter('folderId') as string) || '';
+				} catch (e) {
+					// ignore — fall back to getNodeParameter
+				}
+				if (!folderId) {
+					try {
+						folderId = (this.getNodeParameter('folderId', '') as string) || '';
+					} catch (e) {
+						// ignore — leave folderId empty
+					}
+				}
 				if (!folderId) {
 					return [{ name: '[select a folder first]', value: '' }];
 				}
