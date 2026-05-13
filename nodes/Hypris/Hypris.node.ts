@@ -162,6 +162,36 @@ export class Hypris implements INodeType {
 				}
 				return returnData;
 			},
+			async getSubFolders(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				const folderId = this.getCurrentNodeParameter('folderId') as string;
+				if (!folderId) return returnData;
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
+						method: 'GET',
+						url: `https://api.hypris.com/v1/folder/${folderId}/items`,
+						qs: { offset: 0, limit: 200, search: '', sort: 'name', sortDirection: 'asc' },
+						json: true,
+					});
+					let cloudItems: any[] = [];
+					if (Array.isArray(response)) cloudItems = response;
+					else if (response && Array.isArray(response.data)) cloudItems = response.data;
+					else if (response && response.data && Array.isArray(response.data.cloudItems))
+						cloudItems = response.data.cloudItems;
+					else if (response && Array.isArray(response.cloudItems)) cloudItems = response.cloudItems;
+
+					for (const entry of cloudItems) {
+						if (entry.type === 'file') continue;
+						returnData.push({
+							name: entry.name || entry.id,
+							value: entry.id,
+						});
+					}
+				} catch (error) {
+					// Intentionally swallow: load options failures should not break the node UI.
+				}
+				return returnData;
+			},
 			async getProperties(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const databaseId = this.getCurrentNodeParameter('databaseId') as string;
@@ -697,6 +727,7 @@ export class Hypris implements INodeType {
 							'findItems',
 							'getMany',
 							'getManyFiles',
+							'moveToFolder',
 							'moveToRoot',
 							'uploadFile',
 							'getFullDataOptions',
@@ -1647,7 +1678,7 @@ export class Hypris implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['file'],
-						operation: ['getManyFiles', 'moveToRoot'],
+						operation: ['getManyFiles', 'moveToFolder', 'moveToRoot'],
 					},
 				},
 				description:
@@ -1751,9 +1782,13 @@ export class Hypris implements INodeType {
 				description: 'The new name for the file or sub-folder',
 			},
 			{
-				displayName: 'Target Parent Cloud Item ID',
+				displayName: 'Target Sub-Folder Name or ID',
 				name: 'targetParentCloudItemId',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getSubFolders',
+					loadOptionsDependsOn: ['folderId'],
+				},
 				default: '',
 				required: true,
 				displayOptions: {
@@ -1762,8 +1797,8 @@ export class Hypris implements INodeType {
 						operation: ['moveToFolder'],
 					},
 				},
-				placeholder: '69f36b9f...e4bb',
-				description: 'The ID of the destination sub-folder (cloud item of type catalog). Copy it from a Get Many response.',
+				description:
+					'Select the destination sub-folder (catalog) inside the root folder above. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 			},
 		],
 	};
@@ -2244,19 +2279,27 @@ export class Hypris implements INodeType {
 						const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 						const fileBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
 
+						const boundary = `----n8nHyprisBoundary${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+						const CRLF = '\r\n';
+						const safeFileName = String(binaryData.fileName || 'file').replace(/"/g, '');
+						const head = Buffer.from(
+							`--${boundary}${CRLF}` +
+								`Content-Disposition: form-data; name="file"; filename="${safeFileName}"${CRLF}` +
+								`Content-Type: ${binaryData.mimeType || 'application/octet-stream'}${CRLF}${CRLF}`,
+						);
+						const tail = Buffer.from(`${CRLF}--${boundary}--${CRLF}`);
+						const multipartBody = Buffer.concat([head, fileBuffer, tail]);
+
 						options = {
 							method: 'POST',
 							url: `https://api.hypris.com/v1/item/${itemId}/property/${filePropertyId}/file`,
-							headers: { Accept: 'application/json' },
-							formData: {
-								file: {
-									value: fileBuffer,
-									options: {
-										filename: binaryData.fileName,
-										contentType: binaryData.mimeType,
-									},
-								},
+							headers: {
+								'Content-Type': `multipart/form-data; boundary=${boundary}`,
+								'Content-Length': multipartBody.length.toString(),
+								Accept: 'application/json',
 							},
+							body: multipartBody,
+							json: false,
 						} as any;
 					} else if (operation === 'deleteFile') {
 						const fileId = this.getNodeParameter('fileId', i) as string;
