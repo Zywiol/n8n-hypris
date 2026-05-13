@@ -127,13 +127,17 @@ export class Hypris implements INodeType {
 			async getFolders(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const workspaceIdLoader = this.getCurrentNodeParameter('workspaceIdLoader') as string;
-				if (!workspaceIdLoader) return returnData;
+				if (!workspaceIdLoader) {
+					return [{ name: '[select a workspace first]', value: '' }];
+				}
+				let lastResponse: any = null;
 				try {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
 						url: `https://api.hypris.com/v1/workspace/${workspaceIdLoader}/resource-items`,
 						json: true,
 					});
+					lastResponse = response;
 					let resources = [];
 					if (Array.isArray(response)) resources = response;
 					else if (response && Array.isArray(response.data)) resources = response.data;
@@ -142,9 +146,13 @@ export class Hypris implements INodeType {
 					else if (response && Array.isArray(response.resourceItems))
 						resources = response.resourceItems;
 
+					let totalSeen = 0;
+					const typesSeen: { [key: string]: number } = {};
 					for (const res of resources) {
+						totalSeen++;
 						const resourceType =
-							(res.resourceEntity && res.resourceEntity.resourceType) || res.resourceType;
+							(res.resourceEntity && res.resourceEntity.resourceType) || res.resourceType || 'unknown';
+						typesSeen[resourceType] = (typesSeen[resourceType] || 0) + 1;
 						if (resourceType !== 'folder') continue;
 						const folderId =
 							(res.resourceEntity && res.resourceEntity.resourceId) || res.resourceId || res.id;
@@ -157,15 +165,38 @@ export class Hypris implements INodeType {
 							value: folderId,
 						});
 					}
-				} catch (error) {
-					// Intentionally swallow: load options failures should not break the node UI.
+					if (returnData.length === 0) {
+						const typesSummary = Object.entries(typesSeen)
+							.map(([k, v]) => `${k}=${v}`)
+							.join(', ');
+						returnData.push({
+							name: `[no folders found - ${totalSeen} items in workspace: ${typesSummary || 'none'}]`,
+							value: '',
+						});
+					}
+				} catch (error: any) {
+					const msg = error?.message || String(error);
+					const status = error?.httpCode || error?.statusCode || error?.response?.status || '';
+					returnData.push({
+						name: `[loader error${status ? ` ${status}` : ''}] ${String(msg).slice(0, 120)}`,
+						value: '',
+					});
+					if (lastResponse) {
+						returnData.push({
+							name: `[response shape] ${JSON.stringify(lastResponse).slice(0, 120)}`,
+							value: '',
+						});
+					}
 				}
 				return returnData;
 			},
 			async getSubFolders(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				const folderId = this.getCurrentNodeParameter('folderId') as string;
-				if (!folderId) return returnData;
+				if (!folderId) {
+					return [{ name: '[select a folder first]', value: '' }];
+				}
+				let lastResponse: any = null;
 				try {
 					const response = await this.helpers.httpRequestWithAuthentication.call(this, 'hyprisApi', {
 						method: 'GET',
@@ -173,6 +204,7 @@ export class Hypris implements INodeType {
 						qs: { offset: 0, limit: 200, search: '', sort: 'name', sortDirection: 'asc' },
 						json: true,
 					});
+					lastResponse = response;
 					let cloudItems: any[] = [];
 					if (Array.isArray(response)) cloudItems = response;
 					else if (response && Array.isArray(response.data)) cloudItems = response.data;
@@ -180,15 +212,40 @@ export class Hypris implements INodeType {
 						cloudItems = response.data.cloudItems;
 					else if (response && Array.isArray(response.cloudItems)) cloudItems = response.cloudItems;
 
+					let totalSeen = 0;
+					const typesSeen: { [key: string]: number } = {};
 					for (const entry of cloudItems) {
+						totalSeen++;
+						const t = entry.type || 'unknown';
+						typesSeen[t] = (typesSeen[t] || 0) + 1;
 						if (entry.type === 'file') continue;
 						returnData.push({
 							name: entry.name || entry.id,
 							value: entry.id,
 						});
 					}
-				} catch (error) {
-					// Intentionally swallow: load options failures should not break the node UI.
+					if (returnData.length === 0) {
+						const typesSummary = Object.entries(typesSeen)
+							.map(([k, v]) => `${k}=${v}`)
+							.join(', ');
+						returnData.push({
+							name: `[no sub-folders - ${totalSeen} items in folder: ${typesSummary || 'none'}]`,
+							value: '',
+						});
+					}
+				} catch (error: any) {
+					const msg = error?.message || String(error);
+					const status = error?.httpCode || error?.statusCode || error?.response?.status || '';
+					returnData.push({
+						name: `[loader error${status ? ` ${status}` : ''}] ${String(msg).slice(0, 120)}`,
+						value: '',
+					});
+					if (lastResponse) {
+						returnData.push({
+							name: `[response shape] ${JSON.stringify(lastResponse).slice(0, 120)}`,
+							value: '',
+						});
+					}
 				}
 				return returnData;
 			},
